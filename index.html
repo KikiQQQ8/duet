@@ -139,7 +139,18 @@ async function loadBacking() {
     statusEl.textContent = '';
     infoEl.textContent = '';
     
-    const files = ['backing_mix.wav', 'backing.wav', 'backing.mp3'];
+    // ====== jsDelivr CDN（国内快）======
+    const CDN_BASE = 'https://cdn.jsdelivr.net/gh/KikiQQQ8/duet@main/';
+    // ===================================
+    
+    const files = [
+        CDN_BASE + 'backing_mix.mp3',
+        CDN_BASE + 'backing_mix.wav',
+        'backing_mix.mp3',
+        'backing_mix.wav',
+        'backing.wav',
+        'backing.mp3'
+    ];
     let arrayBuf = null;
     let loadedFile = '';
     
