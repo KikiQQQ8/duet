@@ -59,6 +59,10 @@ h1 { font-size: 26px; margin-bottom: 8px; letter-spacing: 4px; }
 
 .note { color: #555; font-size: 12px; margin-top: 25px; line-height: 1.8; }
 .retry-link { color: #ff6b6b; cursor: pointer; text-decoration: underline; font-size: 13px; margin-top: 10px; display: none; }
+.dl-btn { display: none; margin: 15px auto 0; padding: 14px 40px; font-size: 16px;
+    border-radius: 30px; border: none; background: #4ecdc4; color: #000;
+    font-weight: 600; cursor: pointer; }
+.dl-btn.show { display: inline-block; }
 </style>
 </head>
 <body>
@@ -89,6 +93,7 @@ h1 { font-size: 26px; margin-bottom: 8px; letter-spacing: 4px; }
         建议佩戴耳机
     </p>
     <div class="retry-link" id="retryLink" onclick="loadBacking()">重新加载</div>
+    <button class="dl-btn" id="dlBtn" onclick="downloadAudio()">保存录音</button>
 </div>
 
 <audio id="previewAudio" style="display:none"></audio>
@@ -105,6 +110,7 @@ const loadWrap = document.getElementById('loadWrap');
 const loadBar = document.getElementById('loadBar');
 const loadText = document.getElementById('loadText');
 const retryLink = document.getElementById('retryLink');
+const dlBtn = document.getElementById('dlBtn');
 const previewAudio = document.getElementById('previewAudio');
 
 let audioCtx = null;
@@ -115,6 +121,7 @@ let timerInterval = null;
 let recorderNode = null;
 let backingSource = null;
 let recordedChunks = [];
+let finalBlobUrl = null;
 
 function updateVolLabel() {
     voiceVolLabel.textContent = voiceVolSlider.value + '%';
@@ -369,16 +376,10 @@ async function doMix() {
         const rendered = await offlineCtx.startRendering();
         const wavBlob = renderBufferToWav(rendered);
         
-        // 移动端使用不同下载策略
-        if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-            // iOS: 弹出新窗口预览，用户可以长按保存
-            const url = URL.createObjectURL(wavBlob);
-            window.open(url, '_blank');
-            statusEl.textContent = '完成! 新窗口已打开，长按保存音频';
-        } else {
-            downloadBlob(wavBlob, 'final_duet.wav');
-            statusEl.textContent = '完成! 下载 final_duet.wav';
-        }
+        // 统一使用下载按钮，避免弹窗拦截
+        finalBlobUrl = URL.createObjectURL(wavBlob);
+        dlBtn.classList.add('show');
+        statusEl.textContent = '完成！点击下方按钮保存录音';
         statusEl.style.color = '#4ecdc4';
         infoEl.textContent = '成品时长 ' + formatTime(mixDuration);
         
@@ -461,6 +462,28 @@ function formatTime(sec) {
     const s = Math.floor(sec % 60);
     return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 }
+
+function downloadAudio() {
+    if (!finalBlobUrl) return;
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+        window.location.href = finalBlobUrl;
+    } else {
+        const a = document.createElement('a');
+        a.href = finalBlobUrl;
+        a.download = 'final_duet.wav';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+}
+
+// 新录制时隐藏按钮
+const origStart = startRecording;
+startRecording = function() {
+    dlBtn.classList.remove('show');
+    finalBlobUrl = null;
+    return origStart();
+};
 </script>
 </body>
 </html>
