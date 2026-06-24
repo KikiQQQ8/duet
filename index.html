@@ -2,27 +2,28 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>隔空对唱 - 一键录制混音</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>隔空对唱</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { 
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-    color: #fff; min-height: 100vh; display: flex;
-    align-items: center; justify-content: center;
+    color: #fff; min-height: 100vh; min-height: 100dvh;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-user-select: none; user-select: none;
 }
-.container { text-align: center; padding: 40px; max-width: 500px; width: 100%; }
-h1 { font-size: 28px; margin-bottom: 10px; letter-spacing: 4px; }
+.container { text-align: center; padding: 30px 20px; max-width: 500px; width: 100%; }
+h1 { font-size: 26px; margin-bottom: 8px; letter-spacing: 4px; }
 .sub { color: #aaa; margin-bottom: 30px; font-size: 14px; }
 
 .btn {
-    width: 140px; height: 140px; border-radius: 50%;
+    width: 130px; height: 130px; border-radius: 50%;
     border: 4px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.05);
-    color: #fff; font-size: 18px; cursor: pointer; transition: all 0.3s;
+    color: #fff; font-size: 17px; cursor: pointer; transition: all 0.3s;
     display: inline-flex; align-items: center; justify-content: center;
-    position: relative; outline: none; -webkit-tap-highlight-color: transparent;
-    margin: 0 auto;
+    position: relative; outline: none; margin: 0 auto;
+    -webkit-tap-highlight-color: transparent;
 }
 .btn:hover { border-color: #ff6b6b; box-shadow: 0 0 30px rgba(255,107,107,0.3); }
 .btn.recording { 
@@ -37,18 +38,27 @@ h1 { font-size: 28px; margin-bottom: 10px; letter-spacing: 4px; }
 .btn.done { border-color: #4ecdc4; animation: none; }
 .btn.loading { border-color: #ffd700; }
 
-.status { margin-top: 30px; font-size: 16px; color: #aaa; min-height: 24px; }
-.timer { font-size: 36px; font-weight: 300; margin-top: 10px; font-variant-numeric: tabular-nums; }
-.info { color: #666; font-size: 12px; margin-top: 5px; min-height: 18px; }
+.status { margin-top: 25px; font-size: 15px; color: #aaa; min-height: 22px; }
+.timer { font-size: 34px; font-weight: 300; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.info { color: #666; font-size: 12px; margin-top: 4px; min-height: 16px; }
+
+/* 加载进度条 */
+.load-progress-wrap { margin: 25px auto 0; width: 80%; max-width: 300px; display: none; }
+.load-progress-wrap.show { display: block; }
+.load-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+.load-bar-fill { height: 100%; background: #ffd700; width: 0%; transition: width 0.3s; border-radius: 3px; }
+.load-text { font-size: 12px; color: #888; margin-top: 6px; }
+
 .progress { margin-top: 20px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
 .progress-bar { height: 100%; background: #ff6b6b; width: 0%; transition: width 0.3s; }
 
-.volume-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }
+.volume-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; }
 .volume-row label { font-size: 13px; color: #888; min-width: 50px; text-align: right; }
-.volume-row input[type=range] { width: 120px; accent-color: #ff6b6b; }
+.volume-row input[type=range] { width: 110px; accent-color: #ff6b6b; }
 .volume-row span { font-size: 12px; color: #666; min-width: 30px; }
 
-.note { color: #555; font-size: 12px; margin-top: 30px; line-height: 1.8; }
+.note { color: #555; font-size: 12px; margin-top: 25px; line-height: 1.8; }
+.retry-link { color: #ff6b6b; cursor: pointer; text-decoration: underline; font-size: 13px; margin-top: 10px; display: none; }
 </style>
 </head>
 <body>
@@ -60,7 +70,11 @@ h1 { font-size: 28px; margin-bottom: 10px; letter-spacing: 4px; }
     
     <div class="timer" id="timer">00:00</div>
     <div class="info" id="info"></div>
-    <div class="status" id="status">正在加载伴奏...</div>
+    <div class="load-progress-wrap show" id="loadWrap">
+        <div class="load-bar"><div class="load-bar-fill" id="loadBar"></div></div>
+        <div class="load-text" id="loadText">正在下载伴奏 0%</div>
+    </div>
+    <div class="status" id="status"></div>
     <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
     
     <div class="volume-row">
@@ -71,9 +85,10 @@ h1 { font-size: 28px; margin-bottom: 10px; letter-spacing: 4px; }
     
     <p class="note">
         点击按钮 → 伴奏响起 → 开始唱<br>
-        唱完自动停止 → 几秒合成 → 下载成品<br>
-        建议佩戴耳机以获得干净的录音
+        唱完自动停止 → 合成 → 下载成品<br>
+        建议佩戴耳机
     </p>
+    <div class="retry-link" id="retryLink" onclick="loadBacking()">重新加载</div>
 </div>
 
 <audio id="previewAudio" style="display:none"></audio>
@@ -86,6 +101,10 @@ const infoEl = document.getElementById('info');
 const progressBar = document.getElementById('progressBar');
 const voiceVolSlider = document.getElementById('voiceVol');
 const voiceVolLabel = document.getElementById('voiceVolLabel');
+const loadWrap = document.getElementById('loadWrap');
+const loadBar = document.getElementById('loadBar');
+const loadText = document.getElementById('loadText');
+const retryLink = document.getElementById('retryLink');
 const previewAudio = document.getElementById('previewAudio');
 
 let audioCtx = null;
@@ -96,42 +115,100 @@ let timerInterval = null;
 let recorderNode = null;
 let backingSource = null;
 let recordedChunks = [];
-let backingStartTime = 0; // AudioContext.currentTime when backing started
 
 function updateVolLabel() {
     voiceVolLabel.textContent = voiceVolSlider.value + '%';
 }
 
-// ---- 加载伴奏 ----
+// ---- 加载伴奏（带进度 + 超时 + 重试）----
 async function loadBacking() {
-    // 尝试加载预混伴奏
-    const files = ['backing_mix.wav', 'backing.wav', 'backing.mp3', 'backing_mix.mp3'];
+    btn.disabled = true;
+    btn.className = 'btn loading';
+    btn.innerHTML = '加载<br>伴奏';
+    loadWrap.classList.add('show');
+    loadBar.style.width = '0%';
+    loadText.textContent = '正在下载伴奏 0%';
+    retryLink.style.display = 'none';
+    statusEl.textContent = '';
+    infoEl.textContent = '';
+    
+    const files = ['backing_mix.wav', 'backing.wav', 'backing.mp3'];
     let arrayBuf = null;
+    let loadedFile = '';
     
     for (const f of files) {
         try {
-            const resp = await fetch(f);
-            if (resp.ok) {
-                arrayBuf = await resp.arrayBuffer();
-                infoEl.textContent = '伴奏: ' + f;
-                break;
-            }
+            arrayBuf = await downloadWithProgress(f, (pct) => {
+                loadBar.style.width = pct + '%';
+                loadText.textContent = '下载伴奏 ' + pct + '%';
+            });
+            if (arrayBuf) { loadedFile = f; break; }
         } catch(e) { continue; }
     }
     
     if (!arrayBuf) {
-        statusEl.textContent = '未找到伴奏文件';
+        loadText.textContent = '伴奏下载失败，请检查网络';
+        statusEl.textContent = '下载失败';
+        retryLink.style.display = 'block';
         return;
     }
     
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
-    backingBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    loadText.textContent = '解码音频中...';
     
-    btn.disabled = false;
-    btn.className = 'btn';
-    btn.innerHTML = '开始<br>录制';
-    statusEl.textContent = '点击按钮开始';
-    infoEl.textContent = '伴奏就绪 · ' + formatTime(backingBuffer.duration);
+    try {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+        }
+        
+        // 解码超时保护
+        const decodePromise = audioCtx.decodeAudioData(arrayBuf);
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('decode timeout')), 15000)
+        );
+        
+        backingBuffer = await Promise.race([decodePromise, timeoutPromise]);
+        
+        btn.disabled = false;
+        btn.className = 'btn';
+        btn.innerHTML = '开始<br>录制';
+        statusEl.textContent = '点击按钮开始';
+        infoEl.textContent = '伴奏就绪 · ' + formatTime(backingBuffer.duration);
+        loadWrap.classList.remove('show');
+        
+    } catch(e) {
+        console.error('decode error:', e);
+        loadText.textContent = '音频解码失败，请刷新重试';
+        statusEl.textContent = '解码失败';
+        retryLink.style.display = 'block';
+    }
+}
+
+function downloadWithProgress(url, onProgress) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url);
+        xhr.responseType = 'arraybuffer';
+        xhr.timeout = 60000;
+        
+        xhr.onprogress = (e) => {
+            if (e.lengthComputable && onProgress) {
+                onProgress(Math.round(e.loaded / e.total * 100));
+            }
+        };
+        
+        xhr.onload = () => {
+            if (xhr.status === 200 || xhr.status === 304) {
+                resolve(xhr.response);
+            } else {
+                reject(new Error('HTTP ' + xhr.status));
+            }
+        };
+        
+        xhr.onerror = () => reject(new Error('network error'));
+        xhr.ontimeout = () => reject(new Error('timeout'));
+        
+        xhr.send();
+    });
 }
 
 loadBacking();
@@ -158,37 +235,25 @@ async function toggleRecord() {
             } 
         });
         
-        // 如果 AudioContext 被暂停（浏览器策略），恢复它
         if (audioCtx.state === 'suspended') await audioCtx.resume();
         
-        // 创建麦克风源
         const micSource = audioCtx.createMediaStreamSource(stream);
-        
-        // 用于录制的 ScriptProcessorNode（采集原始麦克风数据）
         recorderNode = audioCtx.createScriptProcessor(4096, 1, 1);
         recordedChunks = [];
         
         recorderNode.onaudioprocess = (e) => {
             if (!isRecording) return;
-            const input = e.inputBuffer.getChannelData(0);
-            recordedChunks.push(new Float32Array(input));
+            recordedChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
         };
         
-        // 用于监听输出的节点（让用户能听到自己的声音）
         const voiceGain = audioCtx.createGain();
         voiceGain.gain.value = voiceVolSlider.value / 100;
         
-        // 伴奏节点
         backingSource = audioCtx.createBufferSource();
         backingSource.buffer = backingBuffer;
-        
         const backingGain = audioCtx.createGain();
         backingGain.gain.value = 1.0;
         
-        // 连接图：
-        // 麦克风 → recorderNode → voiceGain → destination（监听）
-        //                     → 不连输出（只录制原始信号）
-        // 伴奏 → backingGain → destination（播放给用户听）
         micSource.connect(recorderNode);
         recorderNode.connect(voiceGain);
         voiceGain.connect(audioCtx.destination);
@@ -196,9 +261,7 @@ async function toggleRecord() {
         backingSource.connect(backingGain);
         backingGain.connect(audioCtx.destination);
         
-        // 启动伴奏（精确记录时间戳）
-        backingStartTime = audioCtx.currentTime + 0.05; // 50ms 微小延迟确保同步
-        backingSource.start(backingStartTime);
+        backingSource.start(audioCtx.currentTime + 0.05);
         
         isRecording = true;
         startTime = performance.now();
@@ -208,24 +271,18 @@ async function toggleRecord() {
         updateTimer();
         timerInterval = setInterval(updateTimer, 200);
         
-        // 伴奏结束时自动停止
         backingSource.onended = () => {
             if (isRecording) {
-                const actualEnd = backingStartTime + backingBuffer.duration;
-                // 等待到精确的结束时间
-                const remainingMs = (actualEnd - audioCtx.currentTime) * 1000;
-                setTimeout(() => {
-                    if (isRecording) stopRecording();
-                }, Math.max(0, remainingMs));
+                setTimeout(() => { if (isRecording) stopRecording(); }, 500);
             }
         };
         
     } catch (err) {
         console.error(err);
         if (err.name === 'NotAllowedError') {
-            statusEl.textContent = '麦克风权限被拒绝';
+            statusEl.textContent = '请在浏览器设置中允许麦克风权限';
         } else if (err.name === 'NotReadableError') {
-            statusEl.textContent = '无法访问麦克风，检查是否有其他应用占用';
+            statusEl.textContent = '麦克风被占用，请关闭其他应用';
         } else {
             statusEl.textContent = '错误: ' + err.message;
         }
@@ -240,25 +297,20 @@ async function stopRecording() {
     btn.className = 'btn';
     btn.innerHTML = '合成<br>中...';
     btn.disabled = true;
-    statusEl.textContent = '停止录制，正在合成...';
+    statusEl.textContent = '正在合成...';
     progressBar.style.width = '100%';
     
-    // 停止伴奏
     if (backingSource) {
         try { backingSource.stop(); } catch(e) {}
         backingSource.disconnect();
         backingSource = null;
     }
-    
-    // 停止录制节点
     if (recorderNode) {
         recorderNode.disconnect();
         recorderNode = null;
     }
     
-    // 短暂等待确保最后的数据被收集
-    await new Promise(r => setTimeout(r, 200));
-    
+    await new Promise(r => setTimeout(r, 300));
     const elapsed = (performance.now() - startTime) / 1000;
     timerEl.textContent = formatTime(elapsed);
     
@@ -266,21 +318,19 @@ async function stopRecording() {
 }
 
 async function doMix() {
-    statusEl.textContent = '正在三轨混音...';
+    statusEl.textContent = '三轨混音中...';
     
     try {
-        // 计算观众录音总时长（精确到最后一个采样）
         const sampleRate = audioCtx.sampleRate;
         const totalSamples = recordedChunks.reduce((sum, c) => sum + c.length, 0);
         
         if (totalSamples === 0) {
-            statusEl.textContent = '没有录制到音频，请重试';
+            statusEl.textContent = '未录制到音频，请重试';
             btn.innerHTML = '开始<br>录制';
             btn.disabled = false;
             return;
         }
         
-        // 把录制数据拼成完整 Float32Array
         const voiceData = new Float32Array(totalSamples);
         let offset = 0;
         for (const chunk of recordedChunks) {
@@ -293,10 +343,8 @@ async function doMix() {
         const mixDuration = Math.max(voiceDuration, backingDuration);
         const mixSamples = Math.ceil(mixDuration * sampleRate);
         
-        // OfflineAudioContext 三轨混音
         const offlineCtx = new OfflineAudioContext(2, mixSamples, sampleRate);
         
-        // 人声轨 (时间 0 开始)
         const voiceBuf = offlineCtx.createBuffer(1, totalSamples, sampleRate);
         voiceBuf.getChannelData(0).set(voiceData);
         const voiceSrc = offlineCtx.createBufferSource();
@@ -306,41 +354,41 @@ async function doMix() {
         voiceSrc.connect(voiceGain);
         voiceGain.connect(offlineCtx.destination);
         
-        // 伴奏轨 (backing_mix 包含领唱+伴奏，所以直接是一个完整轨)
         const backingSrc = offlineCtx.createBufferSource();
         backingSrc.buffer = backingBuffer;
         const backingGain = offlineCtx.createGain();
-        backingGain.gain.value = 0.7; // 稍微降低伴奏音量，凸显人声
+        backingGain.gain.value = 0.7;
         backingSrc.connect(backingGain);
         backingGain.connect(offlineCtx.destination);
         
-        // 同时启动
         voiceSrc.start(0);
         backingSrc.start(0);
         
-        infoEl.textContent = '渲染中 · 人声 ' + formatTime(voiceDuration) + ' · 伴奏 ' + formatTime(backingDuration);
+        infoEl.textContent = '人声 ' + formatTime(voiceDuration) + ' · 伴奏 ' + formatTime(backingDuration);
         
         const rendered = await offlineCtx.startRendering();
-        
-        // 导出 WAV
         const wavBlob = renderBufferToWav(rendered);
-        downloadBlob(wavBlob, 'final_duet.wav');
         
-        // 预览
-        const previewUrl = URL.createObjectURL(wavBlob);
-        previewAudio.src = previewUrl;
-        
-        statusEl.textContent = '完成! 下载 final_duet.wav 中...';
+        // 移动端使用不同下载策略
+        if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+            // iOS: 弹出新窗口预览，用户可以长按保存
+            const url = URL.createObjectURL(wavBlob);
+            window.open(url, '_blank');
+            statusEl.textContent = '完成! 新窗口已打开，长按保存音频';
+        } else {
+            downloadBlob(wavBlob, 'final_duet.wav');
+            statusEl.textContent = '完成! 下载 final_duet.wav';
+        }
         statusEl.style.color = '#4ecdc4';
-        infoEl.textContent = '成品时长 ' + formatTime(mixDuration) + ' · 三轨混音';
+        infoEl.textContent = '成品时长 ' + formatTime(mixDuration);
         
         btn.innerHTML = '开始<br>录制';
         btn.disabled = false;
         btn.className = 'btn done';
         
     } catch(e) {
-        console.error('混音失败:', e);
-        statusEl.textContent = '混音失败: ' + e.message;
+        console.error('mix error:', e);
+        statusEl.textContent = '合成失败: ' + e.message;
         btn.innerHTML = '开始<br>录制';
         btn.disabled = false;
     }
@@ -351,10 +399,7 @@ function renderBufferToWav(buffer) {
     const sampleRate = buffer.sampleRate;
     const bitsPerSample = 16;
     const data = [];
-    
-    for (let ch = 0; ch < numChannels; ch++) {
-        data.push(buffer.getChannelData(ch));
-    }
+    for (let ch = 0; ch < numChannels; ch++) data.push(buffer.getChannelData(ch));
     
     const samplesPerChannel = data[0].length;
     const byteRate = sampleRate * numChannels * bitsPerSample / 8;
@@ -365,7 +410,6 @@ function renderBufferToWav(buffer) {
     
     const arrayBuf = new ArrayBuffer(bufferSize);
     const view = new DataView(arrayBuf);
-    
     const ws = (off, str) => { for(let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); };
     
     ws(0, 'RIFF');
@@ -391,7 +435,6 @@ function renderBufferToWav(buffer) {
             off += 2;
         }
     }
-    
     return new Blob([arrayBuf], { type: 'audio/wav' });
 }
 
@@ -400,7 +443,9 @@ function downloadBlob(blob, filename) {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
@@ -408,14 +453,6 @@ function updateTimer() {
     const elapsed = (performance.now() - startTime) / 1000;
     timerEl.textContent = formatTime(elapsed);
     progressBar.style.width = Math.min(100, (elapsed / 300) * 100) + '%';
-    
-    if (audioCtx && backingBuffer && backingStartTime) {
-        const backingElapsed = audioCtx.currentTime - backingStartTime;
-        const remain = backingBuffer.duration - backingElapsed;
-        if (remain > 0) {
-            infoEl.textContent = '伴奏剩余 ' + formatTime(remain);
-        }
-    }
 }
 
 function formatTime(sec) {
